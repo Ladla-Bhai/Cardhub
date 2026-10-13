@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CardHub — Gift Cards</title>
+<style>
+:root{--navy:#071326;--blue:#1268f5;--ink:#10203c;--muted:#60718d;--line:#dce6f5;--bg:#f5f8fd}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(120deg,#071326,#102b52);color:white;padding:17px max(18px,calc((100% - 1150px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-size:25px;font-weight:800}.brand span{color:#4a9aff}.tag{font-size:12px;color:#c3d7f7;margin-top:3px}
+nav{display:flex;gap:18px;font-size:14px;color:#dce8ff}
+main{max-width:1150px;margin:auto;padding:24px 18px 50px}
+.hero{display:grid;grid-template-columns:1.5fr 1fr;gap:22px;align-items:center;background:linear-gradient(120deg,#08162c,#10366c);border-radius:20px;padding:32px;color:white;overflow:hidden}
+.hero h1{font-size:clamp(29px,4vw,47px);line-height:1.12;margin:0 0 13px}.hero h1 span{color:#4da0ff}.hero p{color:#d0e0fa;line-height:1.6}.hero-art{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.mini-card{width:145px;height:92px;border-radius:13px;padding:15px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:bold;font-size:17px;box-shadow:0 12px 24px #0004;transform:rotate(-4deg)}
+.amazon{background:#101820;color:white}.flipkart{background:#0759d8;color:white;transform:rotate(4deg)}.google{background:#fff;color:#1c2d49}.steam{background:#162943;color:white}
+.section-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:28px 0 15px}.section-head h2{margin:0;font-size:25px}.section-head p{margin:6px 0 0;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.product{background:white;border:1px solid var(--line);border-radius:15px;padding:15px;box-shadow:0 4px 14px #163c6b0a}
+.card-art{height:125px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;margin-bottom:14px;text-align:center}
+.product h3{margin:0 0 8px;font-size:18px}.value{color:#526987;font-size:13px}.price-row{display:flex;align-items:center;justify-content:space-between;margin:12px 0}.price{font-size:23px;font-weight:800;color:#087a52}.old{font-size:12px;color:#72819a}
+button{border:0;border-radius:9px;background:var(--blue);color:white;font-weight:700;padding:12px 15px;cursor:pointer}button:hover{filter:brightness(.95)}.buy{width:100%}.secondary{background:#eaf1fc;color:#17335b}.admin{margin-top:28px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:18px}.admin h2{margin:0 0 7px}.note{color:var(--muted);font-size:13px;line-height:1.5}.admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:15px}.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700}.field input{width:100%;padding:10px;border:1px solid #cbd8eb;border-radius:8px;font-size:15px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+footer{text-align:center;color:#71819a;padding:25px;font-size:12px}
+.modal{position:fixed;inset:0;background:#061226c9;display:none;align-items:center;justify-content:center;padding:16px;z-index:5}.modal.show{display:flex}.dialog{background:white;width:min(540px,100%);max-height:92vh;overflow:auto;border-radius:18px;padding:22px}.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.dialog h2{margin:0}.close{background:#edf2fa;color:#172b49;padding:8px 12px}.order-summary{background:#f3f7ff;padding:14px;border-radius:11px;margin:16px 0;line-height:1.8}.qr-wrap{border:1px dashed #aabbd4;border-radius:13px;padding:18px;text-align:center}.qr{width:210px;height:210px;object-fit:contain;display:none;margin:12px auto}.qr-placeholder{width:210px;height:210px;max-width:100%;margin:12px auto;background:#eef3fa;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#536987;font-size:14px;padding:20px}.warning{font-size:12px;color:#7a4b00;background:#fff6df;border-radius:9px;padding:10px;line-height:1.5;margin-top:12px}
+@media(max-width:760px){.hero{grid-template-columns:1fr;padding:23px}.hero-art{justify-content:flex-start}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-grid{grid-template-columns:1fr}.card-art{height:100px}.product{padding:11px}.product h3{font-size:16px}nav{gap:10px;flex-wrap:wrap}}
+@media(max-width:420px){.grid{grid-template-columns:1fr}.card-art{height:115px}}
+</style>
+</head>
+<body>
+<header><div><div class="brand">🎁 Card<span>Hub</span></div><div class="tag">Gift Cards · Easy Payments</div></div><nav><span>Home</span><span>Gift Cards</span><span>My Orders</span><span>Support</span></nav></header>
+<main>
+<section class="hero"><div><h1>Gift Cards <span>Made Easy</span></h1><p>Apna pasandida gift card chunein, price dekhein aur checkout par payment QR scan karein.</p><div>✓ Simple checkout &nbsp; ✓ Price options aapke control mein</div></div><div class="hero-art"><div class="mini-card amazon">amazon</div><div class="mini-card flipkart">Flipkart</div><div class="mini-card google">▶ Google Play</div><div class="mini-card steam">STEAM</div></div></section>
+<div class="section-head"><div><h2>Popular Gift Cards</h2><p>Demo listings — live sale ke liye genuine, authorized cards zaroori hain.</p></div></div>
+<section class="grid" id="products"></section>
+<section class="admin" id="admin">
+<h2>⚙️ Price Manager</h2><p class="note">Yahan se har card ki selling price aur gift card ki value set karke “Save Prices” dabayein. Ye demo browser mein save hota hai; live website par secure admin login/database banana hoga.</p>
+<div class="admin-grid" id="priceFields"></div>
+<div class="actions"><button id="savePrices">Save Prices</button><button class="secondary" id="resetPrices">Reset Demo Prices</button></div>
+<hr style="border:0;border-top:1px solid #e1e8f2;margin:20px 0">
+<h3>Apna UPI QR upload karein</h3><p class="note">Apni payment app se asli QR image upload karein. Ye file is browser session mein preview ke liye hai; website par dusre customers ko dikhane ke liye ise hosting par upload karna hoga.</p>
+<div class="actions"><input id="qrUpload" type="file" accept="image/*"><button class="secondary" id="removeQr">Remove QR</button></div>
+</section>
+</main>
+<footer>© CardHub Demo · Amazon, Flipkart aur Google Play ke trademarks unke respective owners ke hain.</footer>
+<div class="modal" id="checkout"><div class="dialog"><div class="dialog-head"><h2>Checkout</h2><button class="close" id="closeModal">✕</button></div><div class="order-summary" id="summary"></div><div class="qr-wrap"><strong>UPI QR se payment karein</strong><img id="qrImage" class="qr" alt="Uploaded UPI QR code"><div class="qr-placeholder" id="qrPlaceholder">Apna asli UPI QR<br>Price Manager mein upload karein</div><div class="note" id="upiLabel">UPI ID yahan baad mein add kar sakte hain.</div></div><div class="warning">Demo checkout: is page par payment automatically verify nahi hoti. Payment app mein transaction confirm karein aur live store par payment gateway ya secure verification lagayein. Payment screenshot akela proof nahi hota.</div><div class="actions"><button style="flex:1" id="confirmDemo">Payment kar li — instructions dekhein</button></div><p class="note" id="paymentMessage"></p></div></div>
+<script>
+const defaults=[
+ {id:'flipkart',name:'Flipkart Gift Card',value:800,price:400,cls:'flipkart',art:'Flipkart'},
+ {id:'amazon',name:'Amazon Gift Card',value:800,price:400,cls:'amazon',art:'amazon'},
+ {id:'google',name:'Google Play Gift Card',value:800,price:400,cls:'google',art:'▶ Google Play'},
+ {id:'steam',name:'Steam Gift Card',value:1000,price:650,cls:'steam',art:'STEAM'},
+ {id:'roblox',name:'Roblox Gift Card',value:800,price:500,cls:'amazon',art:'ROBLOX'},
+ {id:'playstation',name:'PlayStation Gift Card',value:1000,price:750,cls:'flipkart',art:'PlayStation'}
+];
+let products=JSON.parse(localStorage.getItem('cardhubProducts')||'null')||defaults;
+let qrData='';
+const money=n=>'₹'+Number(n).toLocaleString('en-IN');
+function renderProducts(){document.getElementById('products').innerHTML=products.map(p=>`<article class="product"><div class="card-art ${p.cls}">${p.art}</div><h3>${p.name}</h3><div class="value">Gift card value: ${money(p.value)}</div><div class="price-row"><div class="price">${money(p.price)}</div><div class="old">Demo price</div></div><button class="buy" onclick="buy('${p.id}')">Buy Now</button></article>`).join('')}
+function renderFields(){document.getElementById('priceFields').innerHTML=products.map(p=>`<div><strong>${p.name}</strong><div class="field" style="margin-top:8px">Gift card value (₹)<input type="number" min="1" id="value-${p.id}" value="${p.value}"></div><div class="field" style="margin-top:8px">Selling price (₹)<input type="number" min="1" id="price-${p.id}" value="${p.price}"></div></div>`).join('')}
+function save(){for(const p of products){const v=Number(document.getElementById('value-'+p.id).value),pr=Number(document.getElementById('price-'+p.id).value);if(v<=0||pr<=0||!Number.isFinite(v)||!Number.isFinite(pr)){alert('Har price aur value 1 ya usse zyada honi chahiye.');return}p.value=v;p.price=pr}localStorage.setItem('cardhubProducts',JSON.stringify(products));renderProducts();alert('Demo prices save ho gayi!')}
+function buy(id){const p=products.find(x=>x.id===id);document.getElementById('summary').innerHTML=`<strong>${p.name}</strong><br>Gift card value: <strong>${money(p.value)}</strong><br>Aapko pay karna hai: <strong style="color:#087a52;font-size:22px">${money(p.price)}</strong>`;document.getElementById('paymentMessage').textContent='';document.getElementById('checkout').classList.add('show')}
+document.getElementById('savePrices').onclick=save;
+document.getElementById('resetPrices').onclick=()=>{products=defaults.map(p=>({...p}));localStorage.setItem('cardhubProducts',JSON.stringify(products));renderProducts();renderFields()};
+document.getElementById('closeModal').onclick=()=>document.getElementById('checkout').classList.remove('show');
+document.getElementById('checkout').onclick=e=>{if(e.target.id==='checkout')e.currentTarget.classList.remove('show')};
+document.getElementById('qrUpload').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{qrData=r.result;document.getElementById('qrImage').src=qrData;document.getElementById('qrImage').style.display='block';document.getElementById('qrPlaceholder').style.display='none';document.getElementById('upiLabel').textContent='QR upload hua — test scan karne ke baad hi customers ko use karne dein.'};r.readAsDataURL(f)};
+document.getElementById('removeQr').onclick=()=>{qrData='';document.getElementById('qrImage').src='';document.getElementById('qrImage').style.display='none';document.getElementById('qrPlaceholder').style.display='flex';document.getElementById('upiLabel').textContent='UPI ID yahan baad mein add kar sakte hain.';document.getElementById('qrUpload').value=''};
+document.getElementById('confirmDemo').onclick=()=>{document.getElementById('paymentMessage').textContent='Abhi ye demo hai. Live website par payment confirm karne ke liye order ID aur secure payment verification add karna hoga; uske baad hi gift card code bhejein.'};
+renderProducts();renderFields();
+</script>
+</body></html>

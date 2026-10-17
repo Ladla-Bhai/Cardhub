@@ -14,11 +14,15 @@ main{max-width:950px;margin:25px auto;padding:15px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
 .card,.panel{background:white;padding:20px;border-radius:12px;box-shadow:0 3px 12px #0001}
 button{padding:10px 14px;background:#1268f5;color:white;border:0;border-radius:7px;cursor:pointer;margin:4px 0}
-input{display:block;padding:10px;margin:8px 0;width:100%;max-width:350px;border:1px solid #ccd5e3;border-radius:6px}
+button:disabled{opacity:.6}
+input{display:block;padding:10px;margin:8px 0;width:100%;max-width:400px;border:1px solid #ccd5e3;border-radius:6px}
 .price{font-size:22px;color:#087a52;font-weight:bold}
-#adminPanel{display:none}
+#adminPanel,#checkoutPanel{display:none}
 small{color:#60718d}
 .message{overflow-wrap:anywhere}
+#qrImage{display:block;width:min(100%,360px);height:auto;margin:15px auto;border:1px solid #ddd;border-radius:8px}
+.center{text-align:center}
+.notice{background:#fff8e6;border:1px solid #f2d18b;padding:12px;border-radius:8px}
 </style>
 </head>
 
@@ -32,6 +36,37 @@ small{color:#60718d}
 <h2>Available Gift Cards</h2>
 <div id="status">Website loading...</div>
 <div id="products" class="grid"></div>
+
+<section id="checkoutPanel" class="panel" style="margin-top:25px">
+<h2>Gift Card Checkout</h2>
+<p id="selectedCardText"></p>
+<p class="price" id="selectedPrice"></p>
+
+<div class="notice">
+Payment karne ke baad UTR/reference submit karein.
+Order payment verify hone tak pending rahega.
+Sirf screenshot ya UTR ko payment confirmation na samjhein.
+</div>
+
+<div class="center">
+<img id="qrImage" src="64555.jpg" alt="CardHub UPI QR">
+<p><b>UPI ID:</b> cardhubmarket@nyes</p>
+<button type="button" id="copyUpiBtn">Copy UPI ID</button>
+</div>
+
+<form id="orderForm">
+<label>Email address</label>
+<input id="customerEmail" type="email" placeholder="Apna email" required maxlength="254">
+
+<label>UPI Transaction ID / UTR</label>
+<input id="transactionRef" type="text" placeholder="Payment ke baad UTR dalein" required minlength="6" maxlength="100">
+
+<button id="submitOrderBtn" type="submit">Submit Order</button>
+<button type="button" id="cancelCheckoutBtn" style="background:#64748b">Cancel</button>
+</form>
+
+<p id="orderMessage" class="message" aria-live="polite"></p>
+</section>
 
 <section class="panel" style="margin-top:25px">
 <h2>Admin Login</h2>
@@ -49,17 +84,18 @@ small{color:#60718d}
 <p id="saveMessage" class="message" aria-live="polite"></p>
 </section>
 
-<p><small>Demo store. Payment is not enabled. No real orders or payments are processed.</small></p>
+<p><small>UPI payment manual verification ke baad hi order confirm karein.</small></p>
 </main>
 
 <script>
 const SUPABASE_URL = "https://cvfmyfzhoxzrtzfzmgfq.supabase.co";
-const SUPABASE_KEY = "sb_publishable_i2fAZZt8T-WkhbmuLy4hbg_zBhfXB6o";
+const SUPABASE_KEY = "sb_publishable_i2fAZZt8-WkhbmuLy4hbg_zBhfXB6o";
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let cards = [];
 let isAdmin = false;
+let selectedCard = null;
 
 const money = n => "₹" + Number(n).toLocaleString("en-IN");
 
@@ -87,60 +123,129 @@ async function loadCards() {
     .order("name");
 
   if (error) {
-    showMessage(
-      "status",
-      "Cards load nahi hue: " + error.message
-    );
+    showMessage("status", "Cards load nahi hue: " + error.message);
     return;
   }
 
   cards = data || [];
-
-  showMessage(
-    "status",
-    cards.length ? "" : "Abhi koi active gift card nahi hai."
-  );
+  showMessage("status", cards.length ? "" : "Abhi koi active gift card nahi hai.");
 
   document.getElementById("products").innerHTML = cards.map(c => `
     <article class="card">
       <h3>${escapeHtml(c.name)}</h3>
       <p>Gift card value: ${money(c.face_value)}</p>
       <div class="price">${money(c.selling_price)}</div>
+      <button type="button" data-buy="${escapeHtml(c.id)}">Buy / Pay</button>
     </article>
   `).join("");
 
+  document.querySelectorAll("[data-buy]").forEach(button => {
+    button.addEventListener("click", () => openCheckout(button.dataset.buy));
+  });
+
   if (isAdmin) renderAdmin();
 }
+
+function openCheckout(cardId) {
+  selectedCard = cards.find(c => c.id === cardId);
+  if (!selectedCard) return;
+
+  document.getElementById("selectedCardText").textContent =
+    selectedCard.name + " — Gift card value " + money(selectedCard.face_value);
+
+  document.getElementById("selectedPrice").textContent =
+    "Pay: " + money(selectedCard.selling_price);
+
+  document.getElementById("checkoutPanel").style.display = "block";
+  showMessage("orderMessage", "");
+  document.getElementById("checkoutPanel").scrollIntoView({behavior:"smooth"});
+}
+
+document.getElementById("cancelCheckoutBtn").addEventListener("click", () => {
+  document.getElementById("checkoutPanel").style.display = "none";
+  selectedCard = null;
+});
+
+document.getElementById("copyUpiBtn").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText("cardhubmarket@nyes");
+    showMessage("orderMessage", "UPI ID copied.");
+  } catch {
+    showMessage("orderMessage", "UPI ID: cardhubmarket@nyes");
+  }
+});
+
+/*
+  IMPORTANT:
+  Order insert tabhi chalega jab Supabase mein secure SQL setup ho.
+  Client se bheje gaye amount/status par bharosa nahi kiya jata.
+*/
+document.getElementById("orderForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  if (!selectedCard) {
+    showMessage("orderMessage", "Pehle gift card select karo.");
+    return;
+  }
+
+  const email = document.getElementById("customerEmail").value.trim();
+  const reference = document.getElementById("transactionRef").value.trim();
+
+  if (!email || !reference) {
+    showMessage("orderMessage", "Email aur UTR dono bharo.");
+    return;
+  }
+
+  const button = document.getElementById("submitOrderBtn");
+  button.disabled = true;
+  button.textContent = "Submitting...";
+
+  try {
+    const { error } = await db.from("orders").insert({
+      gift_card_id: selectedCard.id,
+      customer_email: email,
+      transaction_reference: reference
+    });
+
+    if (error) throw error;
+
+    showMessage(
+      "orderMessage",
+      "Order request submit ho gayi. Payment verify hone tak order pending hai."
+    );
+
+    document.getElementById("orderForm").reset();
+
+  } catch (error) {
+    showMessage(
+      "orderMessage",
+      "Order submit nahi hua: " + error.message +
+      ". Supabase SQL setup aur RLS policy check karni hogi."
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = "Submit Order";
+  }
+});
 
 function renderAdmin() {
   document.getElementById("adminPrices").innerHTML = cards.map(c => `
     <div class="card" style="margin:12px 0">
       <strong>${escapeHtml(c.name)}</strong>
 
-      <label for="value-${c.id}">Gift card value</label>
-      <input
-        type="number"
-        min="1"
-        step="1"
-        id="value-${c.id}"
-        value="${Number(c.face_value)}"
-      >
+      <label>Gift card value</label>
+      <input type="number" min="1" step="1"
+        id="value-${c.id}" value="${Number(c.face_value)}">
 
-      <label for="price-${c.id}">Selling price</label>
-      <input
-        type="number"
-        min="1"
-        step="1"
-        id="price-${c.id}"
-        value="${Number(c.selling_price)}"
-      >
+      <label>Selling price</label>
+      <input type="number" min="1" step="1"
+        id="price-${c.id}" value="${Number(c.selling_price)}">
     </div>
   `).join("");
 }
 
 async function checkAdmin() {
-  const { data: { user }, error: userError } =
-    await db.auth.getUser();
+  const { data: { user }, error: userError } = await db.auth.getUser();
 
   if (userError || !user) {
     isAdmin = false;
@@ -149,12 +254,7 @@ async function checkAdmin() {
     return false;
   }
 
-  /*
-    Admin verification database ki admin_users table se hoti hai.
-    Is table par SELECT permission/policy bhi sahi honi chahiye.
-  */
-  const { data, error } = await db
-    .from("admin_users")
+  const { data, error } = await db.from("admin_users")
     .select("user_id")
     .eq("user_id", user.id)
     .maybeSingle();
@@ -163,12 +263,7 @@ async function checkAdmin() {
     isAdmin = false;
     document.getElementById("adminPanel").style.display = "none";
     document.getElementById("logoutBtn").style.display = "inline-block";
-
-    showMessage(
-      "loginMessage",
-      "Admin verification error: " + error.message +
-      ". Supabase admin_users ki RLS policy check karo."
-    );
+    showMessage("loginMessage", "Admin verification error: " + error.message);
     return false;
   }
 
@@ -176,21 +271,15 @@ async function checkAdmin() {
     isAdmin = false;
     document.getElementById("adminPanel").style.display = "none";
     document.getElementById("logoutBtn").style.display = "inline-block";
-
-    showMessage(
-      "loginMessage",
-      "Yeh account admin_users table mein registered nahi hai."
-    );
+    showMessage("loginMessage", "Yeh account admin_users table mein registered nahi hai.");
     return false;
   }
 
   isAdmin = true;
   document.getElementById("adminPanel").style.display = "block";
   document.getElementById("logoutBtn").style.display = "inline-block";
-
   showMessage("loginMessage", "Admin login successful!");
   renderAdmin();
-
   return true;
 }
 
@@ -209,10 +298,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   showMessage("loginMessage", "");
 
   try {
-    const { error } = await db.auth.signInWithPassword({
-      email,
-      password
-    });
+    const { error } = await db.auth.signInWithPassword({email, password});
 
     if (error) {
       showMessage("loginMessage", "Login error: " + error.message);
@@ -220,6 +306,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
     }
 
     await checkAdmin();
+
   } catch (error) {
     showMessage("loginMessage", "Error: " + error.message);
   } finally {
@@ -235,10 +322,7 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   document.getElementById("adminPanel").style.display = "none";
   document.getElementById("logoutBtn").style.display = "none";
 
-  showMessage(
-    "loginMessage",
-    error ? "Logout error: " + error.message : "Logged out."
-  );
+  showMessage("loginMessage", error ? "Logout error: " + error.message : "Logged out.");
 });
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
@@ -252,63 +336,36 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   showMessage("saveMessage", "Prices save ho rahi hain...");
 
   try {
-    const { data: { user }, error: userError } =
-      await db.auth.getUser();
+    const { data: { user }, error: userError } = await db.auth.getUser();
 
     if (userError || !user) {
-      throw new Error("Login session expire ho gayi. Dobara login karo.");
+      throw new Error("Session expire ho gayi. Dobara login karo.");
     }
 
-    // Har card ki price pehle validate karo.
     const updates = [];
 
     for (const c of cards) {
-      const valueInput = document.getElementById("value-" + c.id);
-      const priceInput = document.getElementById("price-" + c.id);
+      const value = Number(document.getElementById("value-" + c.id).value);
+      const price = Number(document.getElementById("price-" + c.id).value);
 
-      if (!valueInput || !priceInput) {
-        throw new Error("Price input nahi mila. Page refresh karo.");
-      }
-
-      const value = Number(valueInput.value);
-      const price = Number(priceInput.value);
-
-      if (
-        !Number.isFinite(value) ||
-        !Number.isFinite(price) ||
-        value <= 0 ||
-        price <= 0
-      ) {
+      if (!Number.isFinite(value) || !Number.isFinite(price) || value <= 0 || price <= 0) {
         throw new Error("Sabhi prices 0 se zyada honi chahiye.");
       }
 
-      updates.push({
-        id: c.id,
-        face_value: value,
-        selling_price: price
-      });
+      updates.push({id:c.id, face_value:value, selling_price:price});
     }
 
-    // Database RLS policy har update ko authorize karegi.
     for (const item of updates) {
-      const { data, error } = await db
-        .from("gift_cards")
+      const {data, error} = await db.from("gift_cards")
         .update({
-          face_value: item.face_value,
-          selling_price: item.selling_price
+          face_value:item.face_value,
+          selling_price:item.selling_price
         })
         .eq("id", item.id)
         .select("id");
 
-      if (error) {
-        throw new Error("Database save error: " + error.message);
-      }
-
-      if (!data || data.length === 0) {
-        throw new Error(
-          "Price update nahi hui. gift_cards ki UPDATE RLS policy check karo."
-        );
-      }
+      if (error) throw new Error("Database save error: " + error.message);
+      if (!data || data.length === 0) throw new Error("Price update nahi hui. RLS policy check karo.");
     }
 
     showMessage("saveMessage", "Prices successfully save ho gayi!");
@@ -323,12 +380,8 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
 
 async function startApp() {
   await loadCards();
-
   const { data: { session } } = await db.auth.getSession();
-
-  if (session) {
-    await checkAdmin();
-  }
+  if (session) await checkAdmin();
 }
 
 startApp();

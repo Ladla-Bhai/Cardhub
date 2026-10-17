@@ -5,19 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CardHub Gift Cards</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-body{font-family:Arial;background:#f3f6fc;margin:0;color:#10203c}
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f3f6fc;margin:0;color:#10203c}
 header{background:#071326;color:white;padding:22px;text-align:center}
 main{max-width:950px;margin:25px auto;padding:15px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
 .card,.panel{background:white;padding:20px;border-radius:12px;box-shadow:0 3px 12px #0001}
-button{padding:10px 14px;background:#1268f5;color:white;border:0;border-radius:7px;cursor:pointer}
-input{display:block;padding:10px;margin:8px 0;width:90%;max-width:350px}
+button{padding:10px 14px;background:#1268f5;color:white;border:0;border-radius:7px;cursor:pointer;margin:4px 0}
+input{display:block;padding:10px;margin:8px 0;width:100%;max-width:350px;border:1px solid #ccd5e3;border-radius:6px}
 .price{font-size:22px;color:#087a52;font-weight:bold}
 #adminPanel{display:none}
 small{color:#60718d}
+.message{overflow-wrap:anywhere}
 </style>
 </head>
+
 <body>
 <header>
 <h1>🎁 CardHub</h1>
@@ -31,17 +35,18 @@ small{color:#60718d}
 
 <section class="panel" style="margin-top:25px">
 <h2>Admin Login</h2>
-<input id="email" type="email" placeholder="Admin email">
-<input id="password" type="password" placeholder="Password">
+<input id="email" type="email" placeholder="Admin email" autocomplete="username">
+<input id="password" type="password" placeholder="Password" autocomplete="current-password">
 <button id="loginBtn">Login</button>
 <button id="logoutBtn" style="display:none">Logout</button>
-<p id="loginMessage"></p>
+<p id="loginMessage" class="message" aria-live="polite"></p>
 </section>
 
 <section id="adminPanel" class="panel" style="margin-top:20px">
 <h2>Price Manager</h2>
 <div id="adminPrices"></div>
 <button id="saveBtn">Save Prices</button>
+<p id="saveMessage" class="message" aria-live="polite"></p>
 </section>
 
 <p><small>Demo store. Payment is not enabled. No real orders or payments are processed.</small></p>
@@ -51,41 +56,50 @@ small{color:#60718d}
 const SUPABASE_URL = "https://cvfmyfzhoxzrtzfzmgfq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_i2fAZZt8T-WkhbmuLy4hbg_zBhfXB6o";
 
-const configured =
-  SUPABASE_URL.startsWith("https://") &&
-  !SUPABASE_URL.includes("PASTE_") &&
-  !SUPABASE_KEY.includes("PASTE_");
-
-const db = configured
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-  : null;
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let cards = [];
+let isAdmin = false;
 
 const money = n => "₹" + Number(n).toLocaleString("en-IN");
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[ch]));
+}
+
+function showMessage(id, message) {
+  document.getElementById(id).textContent = message;
+}
+
 async function loadCards() {
-  if (!db) {
-    document.getElementById("status").textContent =
-      "Supabase URL aur Publishable Key add karo.";
-    return;
-  }
+  showMessage("status", "Cards load ho rahe hain...");
 
   const { data, error } = await db
     .from("gift_cards")
-    .select("id,name,face_value,selling_price")
+    .select("id,name,face_value,selling_price,active")
     .eq("active", true)
     .order("name");
 
   if (error) {
-    document.getElementById("status").textContent =
-      "Cards load nahi hue. Database permissions check karni hongi.";
+    showMessage(
+      "status",
+      "Cards load nahi hue: " + error.message
+    );
     return;
   }
 
   cards = data || [];
-  document.getElementById("status").textContent =
-    cards.length ? "" : "Abhi koi active card nahi hai.";
+
+  showMessage(
+    "status",
+    cards.length ? "" : "Abhi koi active gift card nahi hai."
+  );
 
   document.getElementById("products").innerHTML = cards.map(c => `
     <article class="card">
@@ -95,128 +109,229 @@ async function loadCards() {
     </article>
   `).join("");
 
-  renderAdmin();
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, ch => ({
-    "&":"&amp;", "<":"&lt;", ">":"&gt;",
-    '"':"&quot;", "'":"&#39;"
-  }[ch]));
-}
-
-async function checkAdmin() {
-  if (!db) return;
-
-  const { data: { user } } = await db.auth.getUser();
-
-  if (!user) {
-    document.getElementById("adminPanel").style.display = "none";
-    document.getElementById("logoutBtn").style.display = "none";
-    return;
-  }
-
-  const { data, error } = await db
-    .from("admin_users")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (error || !data) {
-    document.getElementById("loginMessage").textContent =
-      "Yeh account authorized admin nahi hai.";
-    await db.auth.signOut();
-    return;
-  }
-
-  document.getElementById("adminPanel").style.display = "block";
-  document.getElementById("logoutBtn").style.display = "inline-block";
-  document.getElementById("loginMessage").textContent = "Admin login successful.";
-  renderAdmin();
+  if (isAdmin) renderAdmin();
 }
 
 function renderAdmin() {
   document.getElementById("adminPrices").innerHTML = cards.map(c => `
     <div class="card" style="margin:12px 0">
       <strong>${escapeHtml(c.name)}</strong>
-      <label>Gift card value
-        <input type="number" min="1" id="value-${c.id}" value="${Number(c.face_value)}">
-      </label>
-      <label>Selling price
-        <input type="number" min="1" id="price-${c.id}" value="${Number(c.selling_price)}">
-      </label>
+
+      <label for="value-${c.id}">Gift card value</label>
+      <input
+        type="number"
+        min="1"
+        step="1"
+        id="value-${c.id}"
+        value="${Number(c.face_value)}"
+      >
+
+      <label for="price-${c.id}">Selling price</label>
+      <input
+        type="number"
+        min="1"
+        step="1"
+        id="price-${c.id}"
+        value="${Number(c.selling_price)}"
+      >
     </div>
   `).join("");
 }
 
-document.getElementById("loginBtn").onclick = async () => {
-  if (!db) return alert("Pehle Supabase URL aur key add karo.");
+async function checkAdmin() {
+  const { data: { user }, error: userError } =
+    await db.auth.getUser();
 
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-
-  const { error } = await db.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    document.getElementById("loginMessage").textContent = error.message;
-    return;
+  if (userError || !user) {
+    isAdmin = false;
+    document.getElementById("adminPanel").style.display = "none";
+    document.getElementById("logoutBtn").style.display = "none";
+    return false;
   }
 
-  await checkAdmin();
-};
-
-document.getElementById("logoutBtn").onclick = async () => {
-  await db.auth.signOut();
-  document.getElementById("adminPanel").style.display = "none";
-  document.getElementById("logoutBtn").style.display = "none";
-  document.getElementById("loginMessage").textContent = "Logged out.";
-};
-
-document.getElementById("saveBtn").onclick = async () => {
-  if (!db) return;
-
-  const { data: { user } } = await db.auth.getUser();
-  if (!user) return alert("Pehle admin login karo.");
-
-  const { data: admin, error: adminError } = await db
+  /*
+    Admin verification database ki admin_users table se hoti hai.
+    Is table par SELECT permission/policy bhi sahi honi chahiye.
+  */
+  const { data, error } = await db
     .from("admin_users")
     .select("user_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (adminError || !admin) {
-    return alert("Admin permission nahi hai.");
+  if (error) {
+    isAdmin = false;
+    document.getElementById("adminPanel").style.display = "none";
+    document.getElementById("logoutBtn").style.display = "inline-block";
+
+    showMessage(
+      "loginMessage",
+      "Admin verification error: " + error.message +
+      ". Supabase admin_users ki RLS policy check karo."
+    );
+    return false;
   }
 
-  for (const c of cards) {
-    const value = Number(document.getElementById("value-" + c.id).value);
-    const price = Number(document.getElementById("price-" + c.id).value);
+  if (!data) {
+    isAdmin = false;
+    document.getElementById("adminPanel").style.display = "none";
+    document.getElementById("logoutBtn").style.display = "inline-block";
 
-    if (!Number.isFinite(value) || !Number.isFinite(price) ||
-        value <= 0 || price <= 0) {
-      return alert("Sabhi prices 0 se zyada honi chahiye.");
+    showMessage(
+      "loginMessage",
+      "Yeh account admin_users table mein registered nahi hai."
+    );
+    return false;
+  }
+
+  isAdmin = true;
+  document.getElementById("adminPanel").style.display = "block";
+  document.getElementById("logoutBtn").style.display = "inline-block";
+
+  showMessage("loginMessage", "Admin login successful!");
+  renderAdmin();
+
+  return true;
+}
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const button = document.getElementById("loginBtn");
+
+  if (!email || !password) {
+    showMessage("loginMessage", "Email aur password dono bharo.");
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Logging in...";
+  showMessage("loginMessage", "");
+
+  try {
+    const { error } = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      showMessage("loginMessage", "Login error: " + error.message);
+      return;
     }
 
-    const { error } = await db.from("gift_cards")
-      .update({ face_value: value, selling_price: price })
-      .eq("id", c.id);
+    await checkAdmin();
+  } catch (error) {
+    showMessage("loginMessage", "Error: " + error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Login";
+  }
+});
 
-    if (error) return alert("Save nahi hua. Database policy check karo.");
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  const { error } = await db.auth.signOut();
+
+  isAdmin = false;
+  document.getElementById("adminPanel").style.display = "none";
+  document.getElementById("logoutBtn").style.display = "none";
+
+  showMessage(
+    "loginMessage",
+    error ? "Logout error: " + error.message : "Logged out."
+  );
+});
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
+  if (!isAdmin) {
+    showMessage("saveMessage", "Pehle authorized admin login karo.");
+    return;
   }
 
-  alert("Prices save ho gayi!");
-  await loadCards();
-};
+  const button = document.getElementById("saveBtn");
+  button.disabled = true;
+  showMessage("saveMessage", "Prices save ho rahi hain...");
 
-if (db) {
-  db.auth.onAuthStateChange(() => {
-    setTimeout(checkAdmin, 0);
-  });
-  loadCards();
-} else {
-  document.getElementById("status").textContent =
-    "Code mein Supabase URL aur Publishable Key add karni hain.";
+  try {
+    const { data: { user }, error: userError } =
+      await db.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Login session expire ho gayi. Dobara login karo.");
+    }
+
+    // Har card ki price pehle validate karo.
+    const updates = [];
+
+    for (const c of cards) {
+      const valueInput = document.getElementById("value-" + c.id);
+      const priceInput = document.getElementById("price-" + c.id);
+
+      if (!valueInput || !priceInput) {
+        throw new Error("Price input nahi mila. Page refresh karo.");
+      }
+
+      const value = Number(valueInput.value);
+      const price = Number(priceInput.value);
+
+      if (
+        !Number.isFinite(value) ||
+        !Number.isFinite(price) ||
+        value <= 0 ||
+        price <= 0
+      ) {
+        throw new Error("Sabhi prices 0 se zyada honi chahiye.");
+      }
+
+      updates.push({
+        id: c.id,
+        face_value: value,
+        selling_price: price
+      });
+    }
+
+    // Database RLS policy har update ko authorize karegi.
+    for (const item of updates) {
+      const { data, error } = await db
+        .from("gift_cards")
+        .update({
+          face_value: item.face_value,
+          selling_price: item.selling_price
+        })
+        .eq("id", item.id)
+        .select("id");
+
+      if (error) {
+        throw new Error("Database save error: " + error.message);
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Price update nahi hui. gift_cards ki UPDATE RLS policy check karo."
+        );
+      }
+    }
+
+    showMessage("saveMessage", "Prices successfully save ho gayi!");
+    await loadCards();
+
+  } catch (error) {
+    showMessage("saveMessage", error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+async function startApp() {
+  await loadCards();
+
+  const { data: { session } } = await db.auth.getSession();
+
+  if (session) {
+    await checkAdmin();
+  }
 }
+
+startApp();
 </script>
 </body>
 </html>

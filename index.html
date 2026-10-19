@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -5,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CardHub Gift Cards</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <style>
 *{box-sizing:border-box}
 body{font-family:Arial,sans-serif;background:#f3f6fc;margin:0;color:#10203c}
@@ -25,7 +25,6 @@ small{color:#60718d}
 .notice{background:#fff8e6;border:1px solid #f2d18b;padding:12px;border-radius:8px}
 </style>
 </head>
-
 <body>
 <header>
 <h1>🎁 CardHub</h1>
@@ -57,14 +56,11 @@ Sirf screenshot ya UTR ko payment confirmation na samjhein.
 <form id="orderForm">
 <label>Email address</label>
 <input id="customerEmail" type="email" placeholder="Apna email" required maxlength="254">
-
 <label>UPI Transaction ID / UTR</label>
 <input id="transactionRef" type="text" placeholder="Payment ke baad UTR dalein" required minlength="6" maxlength="100">
-
 <button id="submitOrderBtn" type="submit">Submit Order</button>
 <button type="button" id="cancelCheckoutBtn" style="background:#64748b">Cancel</button>
 </form>
-
 <p id="orderMessage" class="message" aria-live="polite"></p>
 </section>
 
@@ -90,7 +86,6 @@ Sirf screenshot ya UTR ko payment confirmation na samjhein.
 <script>
 const SUPABASE_URL = "https://cvfmyfzhoxzrtzfzmgfq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_i2fAZZt8-WkhbmuLy4hbg_zBhfXB6o";
-
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let cards = [];
@@ -101,11 +96,8 @@ const money = n => "₹" + Number(n).toLocaleString("en-IN");
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    '"': "&quot;", "'": "&#39;"
   }[ch]));
 }
 
@@ -175,11 +167,6 @@ document.getElementById("copyUpiBtn").addEventListener("click", async () => {
   }
 });
 
-/*
-  IMPORTANT:
-  Order insert tabhi chalega jab Supabase mein secure SQL setup ho.
-  Client se bheje gaye amount/status par bharosa nahi kiya jata.
-*/
 document.getElementById("orderForm").addEventListener("submit", async event => {
   event.preventDefault();
 
@@ -201,26 +188,26 @@ document.getElementById("orderForm").addEventListener("submit", async event => {
   button.textContent = "Submitting...";
 
   try {
-    const { error } = await db.from("orders").insert({
-      gift_card_id: selectedCard.id,
-      customer_email: email,
-      transaction_reference: reference
+    const { data: orderId, error } = await db.rpc("submit_cardhub_order", {
+      p_card_id: selectedCard.id,
+      p_email: email,
+      p_reference: reference
     });
 
     if (error) throw error;
 
     showMessage(
       "orderMessage",
-      "Order request submit ho gayi. Payment verify hone tak order pending hai."
+      "Order request submit ho gayi. Order ID: " + orderId +
+      ". Payment verify hone tak order pending hai."
     );
-
     document.getElementById("orderForm").reset();
 
   } catch (error) {
     showMessage(
       "orderMessage",
       "Order submit nahi hua: " + error.message +
-      ". Supabase SQL setup aur RLS policy check karni hogi."
+      ". Supabase SQL function aur permissions check karo."
     );
   } finally {
     button.disabled = false;
@@ -232,11 +219,9 @@ function renderAdmin() {
   document.getElementById("adminPrices").innerHTML = cards.map(c => `
     <div class="card" style="margin:12px 0">
       <strong>${escapeHtml(c.name)}</strong>
-
       <label>Gift card value</label>
       <input type="number" min="1" step="1"
         id="value-${c.id}" value="${Number(c.face_value)}">
-
       <label>Selling price</label>
       <input type="number" min="1" step="1"
         id="price-${c.id}" value="${Number(c.selling_price)}">
@@ -321,7 +306,6 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   isAdmin = false;
   document.getElementById("adminPanel").style.display = "none";
   document.getElementById("logoutBtn").style.display = "none";
-
   showMessage("loginMessage", error ? "Logout error: " + error.message : "Logged out.");
 });
 
@@ -348,7 +332,8 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
       const value = Number(document.getElementById("value-" + c.id).value);
       const price = Number(document.getElementById("price-" + c.id).value);
 
-      if (!Number.isFinite(value) || !Number.isFinite(price) || value <= 0 || price <= 0) {
+      if (!Number.isFinite(value) || !Number.isFinite(price) ||
+          value <= 0 || price <= 0) {
         throw new Error("Sabhi prices 0 se zyada honi chahiye.");
       }
 
@@ -365,7 +350,9 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
         .select("id");
 
       if (error) throw new Error("Database save error: " + error.message);
-      if (!data || data.length === 0) throw new Error("Price update nahi hui. RLS policy check karo.");
+      if (!data || data.length === 0) {
+        throw new Error("Price update nahi hui. RLS policy check karo.");
+      }
     }
 
     showMessage("saveMessage", "Prices successfully save ho gayi!");
